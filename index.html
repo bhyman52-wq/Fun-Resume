@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Braden → OpenRouter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #F5F6F8;
+    --panel: #FFFFFF;
+    --line: #E3E6EB;
+    --ink: #1E2330;
+    --muted: #6B7280;
+    --accent: #1F6F54;
+    --accent-soft: #E9F3EF;
+    --wrong: #B3432B;
+    --wrong-soft: #FBEDE9;
+    --mono: 'IBM Plex Mono', monospace;
+    --head: 'Space Grotesk', sans-serif;
+    --body: 'Inter', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--body);
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+
+  /* ---- step indicator ---- */
+  .steps-wrap{ width:100%; max-width:640px; padding:32px 24px 8px; }
+  .steps-row{ display:flex; align-items:center; }
+  .step-dot{
+    width:26px; height:26px; border-radius:50%;
+    border:1.5px solid var(--line);
+    background:var(--panel);
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--mono); font-size:11px; font-weight:500; color:var(--muted);
+    flex-shrink:0;
+    transition:all .25s ease;
+  }
+  .step-dot.done{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .step-dot.active{ border-color:var(--accent); color:var(--accent); }
+  .step-line{ flex:1; height:1px; background:var(--line); margin:0 6px; position:relative; }
+  .step-line .fill{ position:absolute; left:0; top:0; height:100%; width:0%; background:var(--accent); transition:width .35s ease; }
+  .steps-caption{
+    font-family:var(--mono); font-size:11px; color:var(--muted);
+    margin-top:10px; letter-spacing:.02em;
+  }
+
+  main{ width:100%; max-width:640px; padding:16px 24px 90px; flex:1; }
+
+  .card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:36px 34px;
+    animation:fadeIn .35s ease;
+  }
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+
+  .eyebrow{
+    font-family:var(--mono); font-size:11.5px; color:var(--accent);
+    letter-spacing:.04em; text-transform:uppercase; margin-bottom:12px;
+  }
+  h1{
+    font-family:var(--head); font-size:clamp(21px,3.6vw,27px); font-weight:600;
+    line-height:1.35; margin:0 0 14px; color:var(--ink);
+  }
+  p{ line-height:1.65; margin:0 0 15px; font-size:15px; }
+  .dim{ color:var(--muted); font-size:13.5px; }
+
+  .btn{
+    font-family:var(--body); font-weight:600; font-size:14.5px;
+    background:var(--ink); color:#fff; border:none;
+    padding:12px 22px; border-radius:7px; cursor:pointer;
+    transition:opacity .15s ease;
+  }
+  .btn:hover{ opacity:.85; }
+  .btn:disabled{ opacity:.35; cursor:not-allowed; }
+  .btn-accent{ background:var(--accent); }
+  .btn-outline{ background:transparent; border:1px solid var(--line); color:var(--ink); }
+  .btn-row{ display:flex; gap:10px; margin-top:24px; flex-wrap:wrap; }
+
+  /* ---- drag list (question 1) ---- */
+  .sauce-list{ list-style:none; margin:18px 0; padding:0; display:flex; flex-direction:column; gap:8px; counter-reset: item; }
+  .sauce-item{
+    display:flex; align-items:center; gap:12px;
+    background:var(--bg);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:12px 14px;
+    cursor:grab;
+    user-select:none;
+  }
+  .sauce-item.dragging{ opacity:.4; }
+  .sauce-rank{ font-family:var(--mono); font-weight:600; color:var(--accent); width:18px; font-size:13px; }
+  .sauce-name{ font-weight:500; font-size:14.5px; }
+  .sauce-heat{ margin-left:auto; font-family:var(--mono); font-size:10.5px; color:var(--muted); }
+  .drag-handle{ margin-left:6px; color:var(--muted); font-size:14px; letter-spacing:-2px; }
+
+  /* ---- choice options ---- */
+  .choice-list{ display:flex; flex-direction:column; gap:8px; margin:18px 0; }
+  .choice{
+    display:flex; align-items:flex-start; gap:11px;
+    background:var(--bg);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:13px 15px;
+    cursor:pointer;
+  }
+  .choice input{ margin-top:2px; accent-color:var(--accent); flex-shrink:0; }
+  .choice-label{ font-family:var(--mono); font-size:11px; color:var(--muted); margin-right:2px; }
+  .choice-text{ font-size:14.5px; }
+  .choice.correct{ border-color:var(--accent); background:var(--accent-soft); }
+  .choice.incorrect{ border-color:var(--wrong); background:var(--wrong-soft); }
+  .choice.locked{ cursor:default; }
+  .mark{ margin-left:auto; font-family:var(--mono); font-size:12px; font-weight:600; }
+  .mark.correct-mark{ color:var(--accent); }
+  .mark.incorrect-mark{ color:var(--wrong); }
+
+  .answer-key{
+    margin-top:18px; padding:16px 18px;
+    border-radius:8px; border:1px solid var(--line);
+    background:var(--bg);
+    display:none;
+  }
+  .answer-key.show{ display:block; animation:fadeIn .3s ease; }
+  .answer-key .ak-title{
+    font-family:var(--mono); font-size:11px; color:var(--accent);
+    text-transform:uppercase; letter-spacing:.04em; margin-bottom:8px;
+  }
+  .answer-key p{ margin:0; font-size:14px; color:var(--ink); line-height:1.6; }
+
+  footer{
+    font-family:var(--mono); font-size:11px; color:var(--muted);
+    padding:18px 24px 44px; text-align:center;
+  }
+
+  .screen{ display:none; }
+  .screen.active{ display:block; }
+
+  .resume-box{
+    margin-top:22px; border:1px solid var(--line); border-radius:8px;
+    padding:18px; display:flex; align-items:center; justify-content:space-between;
+    gap:16px; flex-wrap:wrap; background:var(--bg);
+  }
+  .resume-box .fname{ font-family:var(--mono); font-size:13.5px; color:var(--ink); }
+  .resume-box .fsub{ font-family:var(--mono); font-size:10.5px; color:var(--muted); margin-top:3px; }
+
+  @media (max-width:480px){
+    .card{ padding:26px 20px; }
+    .resume-box{ flex-direction:column; align-items:flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<div class="steps-wrap">
+  <div class="steps-row" id="stepsRow"></div>
+  <div class="steps-caption" id="stepsCaption">start</div>
+</div>
+
+<main>
+
+  <!-- SCREEN: INTRO -->
+  <section class="screen active" id="screen-intro">
+    <div class="card">
+      <div class="eyebrow">before you scroll to the resume</div>
+      <h1>Hi Katy, hi Mike — a short, honest detour.</h1>
+      <p>This is five quick questions. The first one is just for fun. The other four are about me — my work history, and a few things that don't fit on a resume but might matter anyway. Answers are revealed after each one, no guessing games required.</p>
+      <p class="dim">Takes about two minutes. My actual resume is waiting at the end either way.</p>
+      <div class="btn-row">
+        <button class="btn btn-accent" onclick="goTo('q1')">Begin →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCREEN: Q1 HOT SAUCE -->
+  <section class="screen" id="screen-q1">
+    <div class="card">
+      <div class="eyebrow">question 1 of 5</div>
+      <h1>Rank these hot sauces however you like.</h1>
+      <p>Drag to reorder. There's no correct sequence here — this one's just an icebreaker.</p>
+      <ul class="sauce-list" id="sauceList">
+        <li class="sauce-item" draggable="true"><span class="sauce-rank">1</span><span class="sauce-name">Tapatío</span><span class="sauce-heat">mild–medium</span><span class="drag-handle">⠿⠿</span></li>
+        <li class="sauce-item" draggable="true"><span class="sauce-rank">2</span><span class="sauce-name">Cholula</span><span class="sauce-heat">mild</span><span class="drag-handle">⠿⠿</span></li>
+        <li class="sauce-item" draggable="true"><span class="sauce-rank">3</span><span class="sauce-name">Sriracha</span><span class="sauce-heat">medium</span><span class="drag-handle">⠿⠿</span></li>
+        <li class="sauce-item" draggable="true"><span class="sauce-rank">4</span><span class="sauce-name">Frank's RedHot</span><span class="sauce-heat">medium–hot</span><span class="drag-handle">⠿⠿</span></li>
+        <li class="sauce-item" draggable="true"><span class="sauce-rank">5</span><span class="sauce-name">Ghost Pepper</span><span class="sauce-heat">regret</span><span class="drag-handle">⠿⠿</span></li>
+      </ul>
+      <div class="btn-row">
+        <button class="btn btn-accent" id="q1submit" onclick="submitQ1()">Submit ranking</button>
+        <button class="btn btn-outline" id="q1continue" style="display:none" onclick="goTo('q2')">Continue →</button>
+      </div>
+      <div class="answer-key" id="q1key">
+        <div class="ak-title">Result</div>
+        <p>Any order works — taste is subjective and there's no wrong ranking. What this actually tested: whether you'd overthink an ungraded task. You didn't. Onward.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- QUIZ QUESTIONS CONTAINER (rendered by JS) -->
+  <section class="screen" id="screen-quiz">
+    <div class="card" id="quizCard"></div>
+  </section>
+
+  <!-- SCREEN: FINAL -->
+  <section class="screen" id="screen-final">
+    <div class="card">
+      <div class="eyebrow">end of route</div>
+      <h1>That's everything. Thanks for reading this far.</h1>
+      <p>Katy, Mike — I built this because I wanted the first thing you saw from me to demonstrate something, not just claim it. I care about how things work, I follow through, and I'm genuinely excited about a product like OpenRouter that sits at the center of how people are building with AI right now.</p>
+      <p>My background is in fast, relationship-driven sales roles — most recently business development in real estate tech, and before that property management. I'd like to bring that same follow-through to OpenRouter's pipeline.</p>
+      <div class="resume-box">
+        <div>
+          <div class="fname">braden_resume.pdf</div>
+          <div class="fsub">swap this link for your real resume file</div>
+        </div>
+        <a class="btn btn-outline" href="resume.pdf" download>Download resume ↓</a>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-outline" onclick="restart()">↺ Start over</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>built by Braden — for Katy Hammond &amp; Mike Haimowitz, OpenRouter</footer>
+
+<script>
+  /* ---------- quiz data (questions 2–5) ---------- */
+  const questions = [
+    {
+      id:'q2',
+      title:'Which of these has Braden actually worked in?',
+      sub:'Select every option that applies.',
+      type:'multi',
+      options:[
+        'Multifamily property management, as an Assistant Property Manager',
+        'A proptech startup, as a business development rep',
+        'AI-driven auto financing, as a sales development rep',
+        'Deep-sea welding'
+      ],
+      correct:[0,1,2],
+      explain:'All three, actually — property management in Springfield, MO, then BDR work at a proptech company, and now SDR work at an AI-driven Buy Here Pay Here auto dealership. The throughline is business development and relationship-building across every stop. No welding certification, deep-sea or otherwise.'
+    },
+    {
+      id:'q3',
+      title:'What does Braden read for fun?',
+      sub:'Pick one.',
+      type:'single',
+      options:['Spy thrillers','Romance novels','Tax law textbooks','Nothing — no time for books'],
+      correct:[1],
+      explain:'Romance novels, unironically. Also relevant to a sales role: reading for pleasure regularly is a decent sign someone can sit still, follow a narrative, and actually listen.'
+    },
+    {
+      id:'q4',
+      title:"What was Braden's monthly meeting-booking target as a BDR?",
+      sub:'Pick one.',
+      type:'single',
+      options:['5+ meetings a month','20+ meetings a month','100+ meetings a month','There was no target'],
+      correct:[1],
+      explain:'20+ meetings a month, targeting property managers with 150+ doors, across cold call, email, and LinkedIn outreach — and building the cadence and playbook that got there.'
+    },
+    {
+      id:'q5',
+      title:'Which language has Braden been chipping away at learning?',
+      sub:'Pick one.',
+      type:'single',
+      options:['French','Mandarin','Latin','American Sign Language'],
+      correct:[1],
+      explain:"Mandarin — slowly, and not for work, just because it's interesting. Take it as a small data point on curiosity and sticking with hard things."
+    }
+  ];
+
+  const order = ['intro','q1','q2','q3','q4','q5','final'];
+  let current = 'intro';
+  let quizIndex = 0;
+
+  function buildSteps(){
+    const row = document.getElementById('stepsRow');
+    row.innerHTML = '';
+    for(let i=1;i<=5;i++){
+      const dot = document.createElement('div');
+      dot.className = 'step-dot';
+      dot.dataset.n = i;
+      dot.textContent = i;
+      row.appendChild(dot);
+      if(i<5){
+        const line = document.createElement('div');
+        line.className = 'step-line';
+        line.innerHTML = '<div class="fill"></div>';
+        row.appendChild(line);
+      }
+    }
+  }
+  buildSteps();
+
+  function stepNumberFor(id){
+    if(id==='intro') return 0;
+    if(id==='q1') return 1;
+    if(id==='final') return 6;
+    return questions.findIndex(q=>q.id===id) + 2;
+  }
+
+  function updateSteps(id){
+    const n = stepNumberFor(id);
+    const dots = document.querySelectorAll('.step-dot');
+    const lines = document.querySelectorAll('.step-line .fill');
+    dots.forEach(d=>{
+      const dn = parseInt(d.dataset.n);
+      d.classList.remove('done','active');
+      if(dn < n || n===6) d.classList.add('done');
+      else if(dn === n) d.classList.add('active');
+    });
+    lines.forEach((l, i)=>{
+      l.style.width = (i+1 < n || n===6) ? '100%' : '0%';
+    });
+    const cap = document.getElementById('stepsCaption');
+    if(id==='intro') cap.textContent = 'start';
+    else if(id==='final') cap.textContent = 'complete';
+    else cap.textContent = 'question ' + n + ' of 5';
+  }
+
+  function goTo(id){
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    if(questions.some(q=>q.id===id)){
+      quizIndex = questions.findIndex(q=>q.id===id);
+      renderQuiz(quizIndex);
+      document.getElementById('screen-quiz').classList.add('active');
+    } else {
+      document.getElementById('screen-'+id).classList.add('active');
+    }
+    current = id;
+    updateSteps(id);
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+
+  function restart(){
+    document.querySelectorAll('.sauce-item .sauce-rank').forEach((el,i)=>el.textContent=i+1);
+    document.getElementById('q1key').classList.remove('show');
+    document.getElementById('q1submit').style.display='inline-block';
+    document.getElementById('q1continue').style.display='none';
+    goTo('intro');
+  }
+
+  /* ---------- Q1 drag/drop ---------- */
+  const list = document.getElementById('sauceList');
+  let dragEl = null;
+  list.addEventListener('dragstart', e=>{ dragEl = e.target.closest('.sauce-item'); dragEl.classList.add('dragging'); });
+  list.addEventListener('dragend', ()=>{ dragEl.classList.remove('dragging'); dragEl=null; renumber(); });
+  list.addEventListener('dragover', e=>{
+    e.preventDefault();
+    const after = getDragAfterElement(list, e.clientY);
+    const dragging = document.querySelector('.dragging');
+    if(!dragging) return;
+    if(after==null) list.appendChild(dragging); else list.insertBefore(dragging, after);
+  });
+  function getDragAfterElement(container, y){
+    const els = [...container.querySelectorAll('.sauce-item:not(.dragging)')];
+    return els.reduce((closest, child)=>{
+      const box = child.getBoundingClientRect();
+      const offset = y - box.top - box.height/2;
+      if(offset<0 && offset>closest.offset) return {offset, element:child};
+      return closest;
+    }, {offset:-Infinity}).element;
+  }
+  function renumber(){
+    document.querySelectorAll('#sauceList .sauce-item').forEach((item,i)=>{
+      item.querySelector('.sauce-rank').textContent = i+1;
+    });
+  }
+  function submitQ1(){
+    document.getElementById('q1key').classList.add('show');
+    document.getElementById('q1submit').style.display='none';
+    document.getElementById('q1continue').style.display='inline-block';
+  }
+
+  /* ---------- quiz questions 2-5 ---------- */
+  function renderQuiz(i){
+    const q = questions[i];
+    const card = document.getElementById('quizCard');
+    const letters = ['A','B','C','D'];
+    const inputType = q.type==='multi' ? 'checkbox' : 'radio';
+    let html = `<div class="eyebrow">question ${i+2} of 5</div>
+      <h1>${q.title}</h1>
+      <p class="dim">${q.sub}</p>
+      <div class="choice-list" id="choices">`;
+    q.options.forEach((opt, idx)=>{
+      html += `<label class="choice" data-idx="${idx}">
+        <input type="${inputType}" name="quiz">
+        <span class="choice-label">${letters[idx]}.</span>
+        <span class="choice-text">${opt}</span>
+      </label>`;
+    });
+    html += `</div>
+      <div class="btn-row">
+        <button class="btn btn-accent" id="quizSubmit">Submit</button>
+        <button class="btn btn-outline" id="quizContinue" style="display:none">Continue →</button>
+      </div>
+      <div class="answer-key" id="quizKey">
+        <div class="ak-title">Answer key</div>
+        <p>${q.explain}</p>
+      </div>`;
+    card.innerHTML = html;
+
+    document.getElementById('quizSubmit').addEventListener('click', ()=>{
+      const choices = document.querySelectorAll('#choices .choice');
+      choices.forEach((c, idx)=>{
+        c.classList.add('locked');
+        c.querySelector('input').disabled = true;
+        const isCorrect = q.correct.includes(idx);
+        if(isCorrect){
+          c.classList.add('correct');
+          c.insertAdjacentHTML('beforeend', '<span class="mark correct-mark">correct</span>');
+        }
+      });
+      document.getElementById('quizKey').classList.add('show');
+      document.getElementById('quizSubmit').style.display='none';
+      document.getElementById('quizContinue').style.display='inline-block';
+    });
+
+    document.getElementById('quizContinue').addEventListener('click', ()=>{
+      const idx = order.indexOf(current);
+      goTo(order[idx+1]);
+    });
+  }
+</script>
+
+</body>
+</html>
